@@ -14,16 +14,23 @@ const getEjercicios = async (req, res) => {
 };
 
 const createEjercicio = async (req, res) => {
-  const { nombre, musculo, videoUrl, repeticiones, descanso } = req.body;
+  const { nombre, musculo, videoUrl, series, repeticiones, descanso } = req.body;
+  
+  if (!nombre || !musculo || !series || !repeticiones) {
+    return res.status(400).json({ error: 'nombre, musculo, series y repeticiones son requeridos' });
+  }
+  
   try {
     const result = await ejerciciosCollection.insertOne({
       nombre,
       musculo,
       videoUrl,
+      series,
       repeticiones,
-      descanso
+      descanso,
+      rutinasIDs: []
     });
-    res.status(201).json({ _id: result.insertedId, ...req.body });
+    res.status(201).json({ _id: result.insertedId, nombre, musculo, videoUrl, series, repeticiones, descanso });
   } catch (error) {
     res.status(500).json({ error: 'Error al crear el ejercicio' });
   }
@@ -31,7 +38,12 @@ const createEjercicio = async (req, res) => {
 
 const updateEjercicio = async (req, res) => {
   const { id } = req.params;
-  const { nombre, musculo, videoUrl, repeticiones, descanso } = req.body;
+  const { nombre, musculo, videoUrl, series, repeticiones, descanso } = req.body;
+  
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'ID de ejercicio inválido' });
+  }
+  
   try {
     const result = await ejerciciosCollection.updateOne(
       { _id: new ObjectId(id) },
@@ -40,6 +52,7 @@ const updateEjercicio = async (req, res) => {
           nombre,
           musculo,
           videoUrl,
+          series,
           repeticiones,
           descanso
         }
