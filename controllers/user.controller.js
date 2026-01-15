@@ -1,7 +1,7 @@
 const client = require('../config/db');
 const { ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
-const { comparePassword, generateToken } = require('../middleware/auth.middleware');
+const jwt = require('jsonwebtoken'); // <--- IMPORTANTE: Importamos esto directo
 
 const db = client.db('eripo');
 const usersCollection = db.collection('users');
@@ -11,6 +11,7 @@ const getUsers = async (req, res) => {
     const users = await usersCollection.find({}).toArray();
     res.json(users);
   } catch (error) {
+    console.error("Error en getUsers:", error); // Ver el error real
     res.status(500).json({ error: 'Error al obtener los usuarios' });
   }
 };
@@ -39,6 +40,7 @@ const createUser = async (req, res) => {
     });
     res.status(201).json({ _id: result.insertedId, nombre, email, isAdmin: false });
   } catch (error) {
+    console.error("Error en createUser:", error);
     res.status(500).json({ error: 'Error al crear el usuario' });
   }
 };
@@ -54,7 +56,6 @@ const updateUser = async (req, res) => {
   try {
     const updateData = { nombre, email };
     
-    // Si se proporciona contraseña, hashearla
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
     }
@@ -65,6 +66,7 @@ const updateUser = async (req, res) => {
     );
     res.json({ message: 'Usuario actualizado', modifiedCount: result.modifiedCount });
   } catch (error) {
+    console.error("Error en updateUser:", error);
     res.status(500).json({ error: 'Error al actualizar el usuario' });
   }
 };
@@ -80,10 +82,12 @@ const deleteUser = async (req, res) => {
     await usersCollection.deleteOne({ _id: new ObjectId(id) });
     res.status(204).end();
   } catch (error) {
+    console.error("Error en deleteUser:", error);
     res.status(500).json({ error: 'Error al eliminar el usuario' });
   }
 };
 
+// --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
   
@@ -92,30 +96,44 @@ const loginUser = async (req, res) => {
   }
   
   try {
+    // 1. Buscar usuario
     const user = await usersCollection.findOne({ email });
-    
     if (!user) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+      return res.status(401).json({ error: 'Usuario no encontrado' });
     }
     
-    const passwordMatch = await comparePassword(password, user.password);
-    
+    // 2. Comparar contraseña (Directamente con bcrypt, sin middleware externo)
+    const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
     
-    // Generar JWT sin expiración
-    const token = generateToken(user._id.toString(), user.email);
+    // 3. Generar JWT (Directamente aquí)
+    // Usamos process.env.JWT_SECRET. Si falla, usa 'secreto_temporal' para que no explote.
+    const secretKey = process.env.JWT_SECRET || 'secreto_super_seguro'; 
     
-    // Devolver usuario sin la contraseña
+    const token = jwt.sign(
+      { 
+        userId: user._id.toString(), 
+        email: user.email,
+        isAdmin: user.isAdmin 
+      },
+      secretKey,
+      { expiresIn: '8h' } // El token dura 8 horas
+    );
+    
+    // 4. Responder
     const { password: _, ...userWithoutPassword } = user;
     res.status(200).json({ 
       message: 'Login exitoso',
       token,
       user: userWithoutPassword
     });
+
   } catch (error) {
-    res.status(500).json({ error: 'Error al iniciar sesión' });
+    // ESTO es lo que nos dirá la verdad si falla
+    console.error(" ERROR REAL EN LOGIN:", error); 
+    res.status(500).json({ error: 'Error interno al iniciar sesión' });
   }
 };
 
