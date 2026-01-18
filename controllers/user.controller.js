@@ -1,7 +1,7 @@
 const client = require('../config/db');
 const { ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken'); // <--- IMPORTANTE: Importamos esto directo
+const jwt = require('jsonwebtoken');
 
 const db = client.db('eripo');
 const usersCollection = db.collection('users');
@@ -11,13 +11,14 @@ const getUsers = async (req, res) => {
     const users = await usersCollection.find({}).toArray();
     res.json(users);
   } catch (error) {
-    console.error("Error en getUsers:", error); // Ver el error real
+    console.error("Error en getUsers:", error);
     res.status(500).json({ error: 'Error al obtener los usuarios' });
   }
 };
 
 const createUser = async (req, res) => {
-  const { nombre, email, password } = req.body;
+
+  const { nombre, email, password, phone, age, plan, notes, status } = req.body;
   
   if (!nombre || !email || !password) {
     return res.status(400).json({ error: 'nombre, email y password son requeridos' });
@@ -31,13 +32,20 @@ const createUser = async (req, res) => {
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
+
     const result = await usersCollection.insertOne({
       nombre,
       email,
       password: hashedPassword,
+      phone: phone || '', // Si no viene, guardamos vacío
+      age: age || '',
+      plan: plan || 'Salud General',
+      notes: notes || '',
+      status: status || 'Activo',
       isAdmin: false,
       rutinas: []
     });
+
     res.status(201).json({ _id: result.insertedId, nombre, email, isAdmin: false });
   } catch (error) {
     console.error("Error en createUser:", error);
@@ -47,19 +55,32 @@ const createUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { nombre, email, password } = req.body;
+  // Datos extras para actualizar
+  const { nombre, email, password, phone, age, plan, notes, status } = req.body;
   
   if (!ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'ID de usuario inválido' });
   }
   
   try {
-    const updateData = { nombre, email };
+    //  Construimos el objeto de actualización dinámicamente
+    const updateData = { 
+        nombre, 
+        email,
+        phone,
+        age,
+        plan,
+        notes,
+        status 
+    };
     
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
     }
     
+    // Limpiamos propiedades undefined (por si acaso no enviaron algún campo)
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
     const result = await usersCollection.updateOne(
       { _id: new ObjectId(id) },
       { $set: updateData }
@@ -87,7 +108,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
   
@@ -96,20 +116,16 @@ const loginUser = async (req, res) => {
   }
   
   try {
-    // 1. Buscar usuario
     const user = await usersCollection.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: 'Usuario no encontrado' });
     }
     
-    // 2. Comparar contraseña (Directamente con bcrypt, sin middleware externo)
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
     
-    // 3. Generar JWT (Directamente aquí)
-    // Usamos process.env.JWT_SECRET. Si falla, usa 'secreto_temporal' para que no explote.
     const secretKey = process.env.JWT_SECRET || 'secreto_super_seguro'; 
     
     const token = jwt.sign(
@@ -119,10 +135,9 @@ const loginUser = async (req, res) => {
         isAdmin: user.isAdmin 
       },
       secretKey,
-      { expiresIn: '8h' } // El token dura 8 horas
+      { expiresIn: '8h' }
     );
     
-    // 4. Responder
     const { password: _, ...userWithoutPassword } = user;
     res.status(200).json({ 
       message: 'Login exitoso',
@@ -131,7 +146,6 @@ const loginUser = async (req, res) => {
     });
 
   } catch (error) {
-    // ESTO es lo que nos dirá la verdad si falla
     console.error(" ERROR REAL EN LOGIN:", error); 
     res.status(500).json({ error: 'Error interno al iniciar sesión' });
   }
