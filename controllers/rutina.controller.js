@@ -1,11 +1,11 @@
-const client = require('../config/db');
+const { getClient } = require('../config/db');
 const { ObjectId } = require('mongodb');
-
-const db = client.db('eripo');
-const rutinasCollection = db.collection('rutinas');
 
 const getRutinas = async (req, res) => {
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const rutinasCollection = db.collection('rutinas');
     const rutinas = await rutinasCollection.find({}).toArray();
     res.json(rutinas);
   } catch (error) {
@@ -25,7 +25,10 @@ const createRutina = async (req, res) => {
   }
   
   try {
-    const usersCollection = client.db('eripo').collection('users');
+    const client = await getClient();
+    const db = client.db('eripo');
+    const rutinasCollection = db.collection('rutinas');
+    const usersCollection = db.collection('users');
     const userExists = await usersCollection.findOne({ _id: new ObjectId(usuarioId) });
     
     if (!userExists) {
@@ -56,6 +59,9 @@ const updateRutina = async (req, res) => {
   const { id } = req.params;
   const { nombre, descripcion, usuarioId, ejerciciosIDs } = req.body;
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const rutinasCollection = db.collection('rutinas');
     const result = await rutinasCollection.updateOne(
       { _id: new ObjectId(id) },
       {
@@ -76,6 +82,9 @@ const updateRutina = async (req, res) => {
 const deleteRutina = async (req, res) => {
   const { id } = req.params;
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const rutinasCollection = db.collection('rutinas');
     await rutinasCollection.deleteOne({ _id: new ObjectId(id) });
     res.status(204).end();
   } catch (error) {

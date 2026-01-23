@@ -1,16 +1,28 @@
 const { MongoClient } = require('mongodb');
 
-const client = new MongoClient(process.env.DATABASE_URL);
+const uri = process.env.DATABASE_URL;
+let client;
+let clientPromise;
 
-async function connectDB() {
-  try {
-    await client.connect();
-    console.log("✅ Conexión exitosa a MongoDB Atlas");
-  } catch (err) {
-    console.error("❌ Error al conectar:", err.message);
-  }
+if (!process.env.DATABASE_URL) {
+  throw new Error('Por favor, agrega DATABASE_URL a tus variables de entorno');
 }
 
-connectDB();
+async function getClient() {
+  if (client) {
+    return client;
+  }
 
-module.exports = client;
+  // Si ya hay una promesa de conexión en curso, la esperamos
+  if (!clientPromise) {
+    client = new MongoClient(uri);
+    clientPromise = client.connect();
+  }
+  
+  await clientPromise;
+  console.log("✅ Conexión establecida/reutilizada");
+  return client;
+}
+
+// Exportamos la función para usarla en tus controladores
+module.exports = { getClient };

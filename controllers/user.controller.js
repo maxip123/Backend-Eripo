@@ -1,14 +1,14 @@
-const client = require('../config/db');
+const { getClient } = require('../config/db');
 const { ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken');
 
-const db = client.db('eripo');
-const usersCollection = db.collection('users');
-
 // --- 1. Obtener Usuarios ---
 const getUsers = async (req, res) => {
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const usersCollection = db.collection('users');
     const users = await usersCollection.find({}).toArray();
     res.json(users);
   } catch (error) {
@@ -26,6 +26,9 @@ const createUser = async (req, res) => {
   }
   
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const usersCollection = db.collection('users');
     const existing = await usersCollection.findOne({ email: email.toLowerCase() });
     if (existing) {
       return res.status(409).json({ error: 'El email ya está registrado' });
@@ -61,6 +64,9 @@ const updateUser = async (req, res) => {
   if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID inválido' });
   
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const usersCollection = db.collection('users');
     const updateData = { nombre, email, phone, age, plan, notes, status };
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
@@ -82,6 +88,9 @@ const deleteUser = async (req, res) => {
   const { id } = req.params;
   if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID inválido' });
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const usersCollection = db.collection('users');
     await usersCollection.deleteOne({ _id: new ObjectId(id) });
     res.status(204).end();
   } catch (error) {
@@ -99,6 +108,9 @@ const loginUser = async (req, res) => {
   }
   
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email });
     
     // Validamos usuario y contraseña

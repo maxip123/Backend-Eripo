@@ -1,11 +1,11 @@
-const client = require('../config/db');
+const { getClient } = require('../config/db');
 const { ObjectId } = require('mongodb');
-
-const db = client.db('eripo');
-const ejerciciosCollection = db.collection('ejercicios');
 
 const getEjercicios = async (req, res) => {
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const ejerciciosCollection = db.collection('ejercicios');
     const ejercicios = await ejerciciosCollection.find({}).toArray();
     res.json(ejercicios);
   } catch (error) {
@@ -21,6 +21,9 @@ const createEjercicio = async (req, res) => {
   }
   
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const ejerciciosCollection = db.collection('ejercicios');
     const result = await ejerciciosCollection.insertOne({
       nombre,
       musculo,
@@ -45,6 +48,9 @@ const updateEjercicio = async (req, res) => {
   }
   
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const ejerciciosCollection = db.collection('ejercicios');
     const result = await ejerciciosCollection.updateOne(
       { _id: new ObjectId(id) },
       {
@@ -67,6 +73,9 @@ const updateEjercicio = async (req, res) => {
 const deleteEjercicio = async (req, res) => {
   const { id } = req.params;
   try {
+    const client = await getClient();
+    const db = client.db('eripo');
+    const ejerciciosCollection = db.collection('ejercicios');
     await ejerciciosCollection.deleteOne({ _id: new ObjectId(id) });
     res.status(204).end();
   } catch (error) {
