@@ -10,7 +10,14 @@ const db = require('./config/db');
 const app = express();
 
 // Middlewares
-app.use(cors());
+const corsOptions = {
+  origin: 'https://unlimitedtraining.vercel.app',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan('combined'));
 app.use(express.json());
